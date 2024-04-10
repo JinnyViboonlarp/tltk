@@ -84,8 +84,9 @@ setup(
     # If there are data files included in your packages that need to be
     # installed, specify them here.  If using Python 2.6 or less, then these
     # have to be included in MANIFEST.in as well.
+
     package_data={
-        'tltk': ['sylrule.lts', 'thaisyl.dict', 'PhSTrigram.sts', 'sylseg.3g', 'thdict', 'BEST.dict', 'tnc-tagger.pick', 'sent_segment_rfs.pick', 'ner-tagger.pick'],
+        'tltk': ['BEST.dict', 'PhSTrigram.sts', 'chklevel_rf.pkl', 'ner_tagger.pklz', 'pos_tagger.pklz', 'sent_segment.pklz', 'sylform_var.pklz', 'sylrule.lts', 'sylseg.3g', 'thaisyl.dict', 'thamalt.mco', 'thdict', 'word.pklz']
     },
 
     # Although 'package_data' is the preferred approach, in some case you may
