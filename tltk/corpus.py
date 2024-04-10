@@ -1,13 +1,17 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 #########################################################
-## Thai Language Toolkit : version  1.1.7
+## Thai Language Toolkit : version  1.8
 ## Chulalongkorn University
 ## written by Wirote Aroonmanakun
 ## Implemented :
+##      upgrade to gensim 4.0
+##      Corpus_build(DIR), W2V_train(Corpus), D2V_train(Corpus)
+##      download_TNCw2v(), download_TNC3g()
 ##      TNC_load(), TNC3g_load(), trigram_load(Filename), unigram(w1), bigram(w1,w2), trigram(w1,w2,w3)
 ##      collocates(w,SPAN,STAT,DIR,LIMIT, MINFQ) = [wa,wb,wc]
-##      similarlity(w1,w2) 
+##      w2v_exist(w), similar_words(w), similarlity(w1,w2), outofgroup(WORDLST), analogy(w1,w2,w3) 
+##      compound(w1,w2)
 #########################################################
 
 import re
@@ -15,15 +19,47 @@ import os
 import math
 from collections import defaultdict
 from operator import itemgetter
+import requests
+
 import gensim
+from gensim.models import Word2Vec, KeyedVectors
+from gensim.models.doc2vec import Doc2Vec, TaggedDocument
+
 import pickle
 from sklearn.decomposition import PCA
-import matplotlib
-from matplotlib import pyplot
+try:
+    import matplotlib
+    from matplotlib import pyplot
+except ImportError:
+    mplAvailable = False
+else:
+    mplAvailable = True
 import numpy
+
+import tltk
+from tltk import nlp
 
 #import gensim, logging
 #logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
+
+def download_TNCw2v():
+#    url = 'https://www.arts.chula.ac.th/ling/wp-content/uploads/TNCc5model2.bin'
+    url = 'https://www.arts.chula.ac.th/~ling/contents/Upload/TNCc5model3.bin'
+    r = requests.get(url, allow_redirects=True)
+    open(ATA_PATH +'/TNCc5model3.bin','wb').write(r.content)
+    return()
+
+def download_TNC3g(): 
+    url = 'https://www.arts.chula.ac.th/ling/wp-content/uploads/TNC.3g'
+    r = requests.get(url, allow_redirects=True)
+    open(ATA_PATH +'/TNC.3g','wb').write(r.content)
+    return()
+
+def download_TNCd2v():
+    url = 'https://www.arts.chula.ac.th/ling/wp-content/uploads/TNCd2v.bin'
+    r = requests.get(url, allow_redirects=True)
+    open(ATA_PATH +'/TNCd2v.bin','wb').write(r.content)
+    return()
 
 def TNC3g_load():
     global TriCount
@@ -54,7 +90,54 @@ def TNC3g_load():
         TotalWord += freq
     return(1)
 
-
+def load_dict_from_pickle(filename):
+    with open(filename, 'rb') as file:
+        return pickle.load(file)
+    
+def TNC_load_2():
+    global TriCount_2
+    global BiCount_2
+    global BiCount2_2
+    global UniCount_2
+    global TotalWord_2
+    
+    TriCount_2 = defaultdict(int)
+    BiCount_2 = defaultdict(int)
+    UniCount_2 = defaultdict(int)
+    BiCount2_2 = defaultdict(int)
+    TotalWord_2 = 0
+    
+    """
+    path = os.path.abspath(__file__)
+    ATA_PATH = os.path.dirname(path)
+    InFile = open(ATA_PATH + '/misspelled_resources/trigram_data.3g','r',encoding='utf8')
+    """
+    InFile = open('misspelled_resources/trigram_data.3g','r',encoding='utf8')
+    forbidden = [('เกย','ตื่น')]
+        
+    print("Loading custom ngram data.")
+    for line in InFile:
+        line.rstrip()
+        (w1,w2,w3,fq) = line.split('\t')
+        if(not((w1, w2) in forbidden and not(w2, w3) in forbidden)):
+            freq = int(fq)
+            TriCount_2[(w1,w2,w3)] = freq # Jinny: see if this is even needed
+            BiCount_2[(w1,w2)] += freq
+            UniCount_2[w1] += freq
+            BiCount2_2[(w1,w3)] += freq
+            
+            if(nlp.check_thaidict(w1+w2)):
+                UniCount_2[w1+w2] += freq
+                BiCount_2[(w1+w2,w3)] += freq
+                #merge_tuples.append((w1,w2))
+            if(nlp.check_thaidict(w2+w3)):
+                BiCount_2[(w1,w2+w3)] += freq
+                #merge_tuples.append((w2,w3))
+            if(nlp.check_thaidict(w1+w2+w3)):
+                UniCount_2[w1+w2+w3] += freq
+                #merge_tuples.append((w1,w2,w3))
+            TotalWord_2 += freq
+    return(1)
 
 def TNC_load():
     global TriCount
@@ -69,6 +152,8 @@ def TNC_load():
     BiCount2 = defaultdict(int)
     TotalWord = 0
 
+    #split_dict = load_dict_from_pickle('merge_tuples.pkl')
+
     path = os.path.abspath(__file__)
     ATA_PATH = os.path.dirname(path)
     try: 
@@ -77,15 +162,35 @@ def TNC_load():
         InFile = open('TNC.3g','r',encoding='utf8')        
 #    Filename = ATA_PATH + '/TNC.3g'
 #    InFile = open(Filename,'r',encoding='utf8')
+    #print("don't load tricount this time")
+    print("Loading ngram data. May take between 1-2 minutes.")
+    #merge_tuples = []
     for line in InFile:
         line.rstrip()
         (w1,w2,w3,fq) = line.split('\t')
         freq = int(fq)
-        TriCount[(w1,w2,w3)] = freq
+        TriCount[(w1,w2,w3)] = freq # Jinny: see if this is even needed
         BiCount[(w1,w2)] += freq
         UniCount[w1] += freq
         BiCount2[(w1,w3)] += freq
+        
+        
+        if(nlp.check_thaidict(w1+w2)):
+            UniCount[w1+w2] += freq
+            BiCount[(w1+w2,w3)] += freq
+            #merge_tuples.append((w1,w2))
+        if(nlp.check_thaidict(w2+w3)):
+            BiCount[(w1,w2+w3)] += freq
+            #merge_tuples.append((w2,w3))
+        if(nlp.check_thaidict(w1+w2+w3)):
+            UniCount[w1+w2+w3] += freq
+            #merge_tuples.append((w1,w2,w3))
         TotalWord += freq
+    """
+    merge_tuples = list(set(merge_tuples))
+    with open('merge_tuples.pkl', 'wb') as f:
+        pickle.dump(merge_tuples, f)
+    """
     return(1)
 
 #### load a trigram file
@@ -113,10 +218,10 @@ def trigram_load(Filename):
         BiCount2[(w1,w3)] += freq
         TotalWord += freq
     return(1)
-    
 
-#### return bigram in per million 
-def unigram(w1):
+#=================================================================
+ 
+def unigram_orig(w1):
     global UniCount
     global TotalWord
     
@@ -126,7 +231,22 @@ def unigram(w1):
         return(0)
 
 #### return bigram in per million 
-def bigram(w1,w2):
+def unigram_custom(w1):
+    global UniCount_2
+    global TotalWord_2
+    
+    if w1 in UniCount:
+        return(float(UniCount_2[w1] * 1000000 / TotalWord_2))
+    else:
+        return(0)
+    
+def unigram(w1):
+    return max(unigram_orig(w1), unigram_custom(w1))
+    
+#=================================================================
+
+#### return bigram in per million 
+def bigram_orig(w1,w2):
     global BiCount
     global TotalWord
     
@@ -135,20 +255,55 @@ def bigram(w1,w2):
     except NameError:
       TNC_load()
 
+    #if nlp.check_thaidict(w1+w2): # jinny
+    #    return unigram(w1+w2)
     if (w1,w2) in BiCount:
         return(float(BiCount[(w1,w2)] * 1000000 / TotalWord))
     else:
         return(0)
     
+def bigram_custom(w1,w2):
+    global BiCount_2
+    global TotalWord_2
+    
+    try:
+      BiCount_2
+    except NameError:
+      TNC_load_2()
+
+    if (w1,w2) in BiCount_2:
+        return(float(BiCount_2[(w1,w2)] * 1000000 / TotalWord_2))
+    else:
+        return(0)
+    
+def bigram(w1,w2):
+    return max(bigram_orig(w1,w2), bigram_custom(w1,w2))
+    
+#=================================================================
+    
 #### return trigram in per million 
-def trigram(w1,w2,w3):
+def trigram_orig(w1,w2,w3):
     global TriCount
     global TotalWord
     
+    #if nlp.check_thaidict(w1+w2+w3): # jinny
+    #    return unigram(w1+w2+w3)
     if (w1,w2,w3) in TriCount:
         return(float(TriCount[(w1,w2,w3)] * 1000000 / TotalWord))
     else:
         return(0)
+    
+def trigram_custom(w1,w2,w3):
+    global TriCount_2
+    global TotalWord_2
+    
+    if (w1,w2,w3) in TriCount_2:
+        return(float(TriCount_2[(w1,w2,w3)] * 1000000 / TotalWord_2))
+    else:
+        return(0)
+    
+def trigram(w1,w2,w3):
+    return max(trigram_orig(w1,w2,w3), trigram_custom(w1,w2,w3))
 
 ##################################################        
 ##### Find Collocate of w1,  stat = {mi, chi2, freq}  direct = {left, right, both}  span = {1,2}
@@ -291,41 +446,230 @@ def compute_colloc(stat,w1,w2):
     return(value)
 
 #######################################################################
-### word2vec model created from TNC 3.0
+### Load Corpus from text files in a directory
+def Corpus_build(dir, sep="file", lang="th",stopword="y", filetype="txt"):
+    ThaiStopwords = ['ที่','การ','เป็น','ใน','ของ','มี','และ','ได้','ให้','ว่า','ไป','มา','ก็','ๆ','ความ','กับ','หรือ','อยู่','กัน','จาก','นี้','แต่','อย่าง','ด้วย','เขา','ขึ้น','นั้น','ผู้','ซึ่ง','ตาม','โดย','ยัง','เพื่อ','อีก','เมื่อ','ถึง','เพราะ','ออก','คือ','จึง','กว่า','ไว้','ถ้า','อะไร','ลง','แบบ','ทุก','อื่น','เช่น','น่า','สามารถ','แห่ง','นี่','ใคร','ใด','เอง','จะ','คง','เคย','อาจ','ต้อง','แล้ว','ครับ','คะ','ค่ะ','นะ','ไม่','ไม่ได้']
+    text_corpus = []
+#    count = defaultdict(int)
+
+    rootDir = dir
+
+    for dirName, subdirList, fileList in os.walk(rootDir):
+        for fname in sorted(fileList):
+            if not fname.endswith('.'+filetype):
+                continue
+            with open(dirName + '/' + fname,encoding='utf8') as f:
+                if sep == 'edu':
+                    txt = f.read()
+                    doc = nlp.segment(txt)
+                    doc = doc.replace('<s/>','')
+                    doc = doc.replace('\n','')
+                    for u in doc.split('<u/>'):
+                        wrdlst = re.split("[, |?:!\^]+",u)
+                        if '' in wrdlst : wrdlst.remove('')
+                        if wrdlst != []:
+                            if lang =='th' and stopword == 'y':
+                                wrdlst_wo_sw = [w for w in wrdlst if not w in ThaiStopwords]
+                                text_corpus.append(wrdlst_wo_sw) 
+                            else:
+                                text_corpus.append(wrdlst) 
+                elif sep == 'file':
+                    txt = f.read()
+                    doc = nlp.word_segment(txt)
+#                    doc = ' '.join(lines)
+                    doc = doc.replace('<s/>','')
+                    doc = doc.replace('\n','')
+                    wrdlst = re.split("[, |?:!\^]+",doc)
+                    if '' in wrdlst : wrdlst.remove('')
+                    if wrdlst != []:
+                        if lang =='th' and stopword == 'y':
+                            wrdlst_wo_sw = [w for w in wrdlst if not w in ThaiStopwords]
+                            text_corpus.append(wrdlst_wo_sw) 
+                        else:
+                            text_corpus.append(wrdlst) 
+                else:
+                    for line in f.readlines():
+                        doc = nlp.word_segment(line)
+                        doc = doc.replace('\n','')
+                        doc = doc.replace('<s/>','')
+                        wrdlst = re.split("[, |?:!\^]+",doc)
+                        if '' in wrdlst : wrdlst.remove('')
+                        if wrdlst != []:
+                            if lang=='th' and stopword == 'y':
+                                wrdlst_wo_sw = [w for w in wrdlst if not w in ThaiStopwords]
+                                text_corpus.append(wrdlst_wo_sw) 
+                            else:
+                                text_corpus.append(wrdlst) 
+    return(text_corpus)
+
+def D2V_train(text_corpus):
+    documents = [TaggedDocument(doc, [i]) for i, doc in enumerate(text_corpus)]
+    #  building a model
+    model = Doc2Vec(vector_size=100, min_count=2, dm =1, epochs=30)
+    model.build_vocab(documents)
+    model.train(documents, total_examples=model.corpus_count, epochs=model.epochs)
+    return(model)
+
+def W2V_train(corpus, min=5):                       
+    model = Word2Vec(corpus,min_count=min)
+    return(model)
+#    model.save(outmodel+'.bin')
+
+## convert corpus data into word list data with frequency
+# if data is pos tagged  word_tag will be counted as one token        
+class Corpus:
+    def frequency(self,corpus):
+        word = {}
+        for line in corpus:
+            for w in line:
+                if w in word:
+                    word[w] +=1
+                else:
+                    word[w] =1
+        return(word)
+    def dispersion(self,corpus):
+        word = {}
+        for line in corpus:
+            for w in list(set(line)):
+                if w in word:
+                    word[w] +=1
+                else:
+                    word[w] =1
+        return(word)
+    def totalword(self,corpus):
+        total = 0
+        for line in corpus:
+            total += len(line)
+        return(total)
+
+## create object for comparing two word frequency lists
+class Xwordlist:
+    def intersect(self,A,B):
+        X = A.keys()
+        Y = B.keys()
+        return([value for value in X if value in Y])
+    def onlyA(self,A,B):
+        X = A.keys()
+        Y = B.keys()
+        return([value for value in X if value not in Y])
+    def onlyB(self,A,B):
+        X = A.keys()
+        Y = B.keys()
+        return([value for value in Y if value not in X])
+    def union(self,A,B):
+        X = A.keys()
+        Y = B.keys()
+        return(list(set(X)|set(Y))) 
+
+
+
+'''
+############ load D2V model from TNC
+def D2V_load(File="TNCd2v.bin"):
+    global d2v_model
+
+    path = os.path.abspath(__file__)
+    ATA_PATH = os.path.dirname(path)
+    try:
+        d2v_model = Doc2Vec.load(File,'rb')
+    except IOError:
+        d2v_model = Doc2Vec.load(ATA_PATH +'/' +"TNCd2v.bin",'rb')
+    return(1)  
+
+def similar_edu(seg,n=1):
+    global d2v_model
+
+    x = seg.split('|')
+    #create vector for that segment
+    newvect = d2v_model.infer_vector(x)
+    #find the most similar top 10 vectors
+    sims = d2v_model.dv.most_similar([newvect])
+    if n == 1:
+        return(pars[int(sims[0][0])])
+    else:
+        ct = 0
+        result = []
+        while ct < n:
+            result.append(pars[int(sims[0][ct])])
+            ct += 1
+        return(result)    
+    #print using index [0][0], [0][1]
+#    print('1.',pars[int(sims[0][0])])
+#    print('2.',pars[int(sims[0][1])])
+
+'''
+
+#######################################################################
+#### word2vec model created from TNC 3.0 gensim 4.0
+
+def W2V_load(File="TNCc5model3.bin"):
+    global w2v_model
+
+    path = os.path.abspath(__file__)
+    ATA_PATH = os.path.dirname(path)
+    try:
+        w2v_model = Word2Vec.load(File,'rb')
+    except IOError:
+        w2v_model = Word2Vec.load(ATA_PATH +'/' +"TNCc5model3.bin",'rb')
+    return(1)    
+
 def w2v_load():
     global w2v_model
 
     path = os.path.abspath(__file__)
     ATA_PATH = os.path.dirname(path)
     try:
-        w2v_model = gensim.models.Word2Vec.load(ATA_PATH +'/' +"TNCc5model.bin")
+#        w2v_model = Word2Vec.load(ATA_PATH +'/' +"TNCc5model2.bin",'rb')
+        w2v_model = Word2Vec.load(ATA_PATH +'/' +"TNCc5model3.bin",'rb')
     except IOError:
-        w2v_model = gensim.models.Word2Vec.load("TNCc5model.bin")
+#        w2v_model = Word2Vec.load("TNCc5model2.bin",'rb')
+        w2v_model = Word2Vec.load("TNCc5model3.bin",'rb')
     return(1)
 
 def w2v_exist(w):
     global w2v_model
-#    try:
-#      w2v_model
-#    except NameError:
-#      w2v_load()
-    if w in list(w2v_model.wv.vocab):
+    try:
+      w2v_model
+    except NameError:
+      w2v_load()
+#    if w in list(w2v_model.wv.vocab):
+    if w in list(w2v_model.wv.index_to_key):
         return(True)
     else:
         return(False)
     
 def w2v(w):
-    if w in list(w2v_model.wv.vocab):
+#    if w in list(w2v_model.wv.vocab):
+    if w in list(w2v_model.wv.index_to_key):
         return(w2v_model.wv[w])
     else:
         return()
-    
+
+## compare w1,w2, w12 returned sorted list of similarity
+def compound(w1,w2):
+    global w2v_model
+    try:
+      w2v_model
+    except NameError:
+      w2v_load()
+    vocabs = list(w2v_model.wv.index_to_key)
+    w12 = w1+w2
+    if w12 not in vocabs or w1 not in vocabs or w2 not in vocabs:
+        return([])  ## not a compound or w1,w2 not exist
+    else:    
+        if w1 in vocabs and w2 in vocabs:
+            d1 = w2v_model.wv.similarity(w1,w12)
+            d2 = w2v_model.wv.similarity(w2,w12)
+            d3 = w2v_model.wv.similarity(w1,w2)
+            lst = [((w1,w12),d1),((w2,w12),d2),((w1,w2),d3)]
+            return(sorted(lst, key=lambda x: x[1], reverse=True))
+
 def similarity(w1,w2):
     global w2v_model
     degree = ''
-    vocabs = list(w2v_model.wv.vocab)
+    vocabs = list(w2v_model.wv.index_to_key)
     if w1 in vocabs and w2 in vocabs:
-        degree = w2v_model.similarity(w1,w2)
+        degree = w2v_model.wv.similarity(w1,w2)
     else:
         degree = 0.    
     return(degree)
@@ -333,9 +677,9 @@ def similarity(w1,w2):
 def cosine_similarity(w1,w2):
     global w2v_model
     degree = ''
-    vocabs = list(w2v_model.wv.vocab)
+    vocabs = list(w2v_model.wv.index_to_key)
     if w1 in vocabs and w2 in vocabs:
-        degree = cosine_similarity = numpy.dot(w2v_model[w1], w2v_model[w2])/(numpy.linalg.norm(w2v_model[w1])* numpy.linalg.norm(w2v_model[w2]))
+        degree = cosine_similarity = numpy.dot(w2v_model.wv[w1], w2v_model.wv[w2])/(numpy.linalg.norm(w2v_model.wv[w1])* numpy.linalg.norm(w2v_model.wv[w2]))
     else:
         degree = 0.    
     return(degree)
@@ -343,8 +687,8 @@ def cosine_similarity(w1,w2):
 
 def similar_words(w1,n=10,cutoff=0.,score="n"):
     global w2v_model                
-    if w1 in list(w2v_model.wv.vocab):
-        out = w2v_model.most_similar(w1)
+    if w1 in list(w2v_model.wv.index_to_key):
+        out = w2v_model.wv.most_similar(w1)
         result = []
         ct = 0
         for (w,p) in out:
@@ -363,11 +707,11 @@ def outofgroup(wrdlst):
       w2v_model
     except NameError:
       w2v_load()
-    vocabs = list(w2v_model.wv.vocab)
+    vocabs = list(w2v_model.wv.index_to_key)
     for w in wrdlst:
         if w in vocabs:
             wrdlst1.append(w)
-    out = w2v_model.doesnt_match(wrdlst1)
+    out = w2v_model.wv.doesnt_match(wrdlst1)
     return(out)
 
 def w2v_diffplot(ww,wx,wy):
@@ -396,7 +740,7 @@ def w2v_dimplot(wrdlst):
       w2v_model
     except NameError:
       w2v_load()
-    vocabs = list(w2v_model.wv.vocab)
+    vocabs = list(w2v_model.wv.index_to_key)
     for w in wrdlst:
         if w in vocabs:
             wrdlst1.append(w)
@@ -420,7 +764,7 @@ def w2v_plot(wrdlst):
       w2v_model
     except NameError:
       w2v_load()
-    vocabs = list(w2v_model.wv.vocab)
+    vocabs = list(w2v_model.wv.index_to_key)
     for w in wrdlst:
         if w in vocabs:
             wrdlst1.append(w)
@@ -430,7 +774,7 @@ def w2v_plot(wrdlst):
         'size'   : 14}
     matplotlib.rc('font', **font)
 
-    X = w2v_model[wrdlst1]
+    X = w2v_model.wv[wrdlst1]
     pca = PCA(n_components=2)
     result = pca.fit_transform(X)
     # create a scatter plot of the projection
@@ -443,25 +787,103 @@ def w2v_plot(wrdlst):
     return(1)
 
     
-
+###  man1 : king2  woman3 : queen
 def analogy(w1,w2,w3, n=1):   #king - man + woman = queen    
     global w2v_model
     try:
       w2v_model
     except NameError:
       w2v_load()
-    vocabs = list(w2v_model.wv.vocab)
+    vocabs = list(w2v_model.wv.index_to_key)
     if w1 in vocabs and w2 in vocabs and w3 in vocabs:    
-        return(w2v_model.most_similar(positive=[w3, w1], negative=[w2], topn=n))
+        return(w2v_model.wv.most_similar(positive=[w3, w2], negative=[w1], topn=n))
     else:
         return([])
+
+#### codes adapted from http://chrisculy.net/lx/wordvectors/wvecs_visualization.html
+def w2v_compare_color(wds):
+    global w2v_model
+    wdsr = wds[:]
+    wdsr.reverse()
+
+    font = {'family' : 'TH Sarabun New',
+        'weight' : 'bold',
+        'size'   : 14}
+    matplotlib.rc('font', **font)
+    
+#    display(HTML('<b>Word vectors for: %s</b>' % ', '.join(wdsr)))
+    
+    vs = [w2v_model.wv[wd] for wd in wds]
+    dim = len(vs[0])
+    
+    fig = pyplot.figure(num=None, figsize=(12, 2), dpi=80, facecolor='w', edgecolor='k')
+    ax = fig.add_subplot(111)
+    ax.set_facecolor('gray')
+    
+    for i,v in enumerate(vs):
+        ax.scatter(range(dim),[i]*dim, c=vs[i], cmap='Spectral', s=16)
+    
+    #plt.xticks(range(n), [i+1 for i in range(n)])
+    pyplot.xlabel('Dimension')
+    pyplot.yticks(range(len(wds)), wds)
+    
+    pyplot.show()        
 
 ############ END OF GENERAL MODULES ##########################################################################
 
 
+
+
+
 ## testing area
+
+
+'''
+
+x = compound('วาง','เงิน')
+print(x)
+x = compound('กลัด','กลุ้ม')
+print(x)
+x = compound('เล็ก','น้อย')
+print(x)
+
+
+pars = Corpus_build('/Users/macbook/Cloud/Dropbox/Corpus/corpora/ThaiNews',sep="edu",filetype="txt")
+print(pars[0:3])
+
+#train Doc2Vec model
+model = D2V_train(pars)
+
+
+#a new paragraph
+x = 'การ|ทดลอง|ภาค|สนาม|โดย|ทีม|ผู้|เชี่ยวชาญ|เรื่อง|การ|ให้|และ|การ|ช่วยเหลือ|ผู้|อื่น'.split('|')
+#create vector for that paragraph
+newvect = model.infer_vector(x)
+#find the most similar top 10 vectors
+sims = model.dv.most_similar([newvect])
+print(sims)
+#print using index [0][0], [0][1]
+print('1.',pars[int(sims[0][0])])
+print('2.',pars[int(sims[0][1])])
+
+
+# read all .wsg files in the directory
+pars = Corpus_build('/Users/macbook/Cloud/Dropbox/Corpus/Thaipublica/wsg',filetype="wsg")
+print(pars[0:3])
+x1 = Corpus()
+print(x1.totalword(pars))
+c1 = Corpus()
+c2 = Corpus()
+Xcomp = Xwordlist()
+print(Xcomp.onlyA(c1.frequency(pars[:100]),c2.frequency(pars[101:])))
+
+W2V_load('TNCc5model2.bin')
+print(similar_words('ขบ'))
+
 #w2v_load()
 #w2v_plot("ผู้ชาย ผู้หญิง เก่ง ฉลาด สวย หล่อ".split(" "))
+#w2v_compare_color("ผู้ชาย ผู้หญิง เก่ง ฉลาด สวย หล่อ".split(" "))
 #w2v_plot(['เก็บรักษา', 'จัดเตรียม','เอา', 'รวบรวม', 'ซื้อ', 'สะสม'])
 #w2v_diffplot("เล็กน้อย","เล็ก", "น้อย")
 #w2v_plot(["แทรกซ้อน","แทรก", "ซ้อน"])
+'''

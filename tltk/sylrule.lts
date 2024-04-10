@@ -72,6 +72,7 @@ CRÑTY,CRaY,N
 XÑTY,XaY,N
 XÑµÃ,Xat,N
 XÑµÔ,Xat,N
+XÑ²Ô,Xat,N
 XÑ°Ô,Xat,N
 XÑ¡Ã,Xak,N
 AK×TÍ,Aa+'KUU,N
@@ -117,6 +118,7 @@ XÙT,Xuu,N
 XÙTY,XuuY,N
 XÙµÃ,Xuut,N
 XÙµÔ,Xuut,N
+XÙ²Ô,Xuut,N
 AKTÒ,Aa+'Kaa,N
 AKTÒY,Aa+'KaaY,N
 CRTÒ,CRaa,N
@@ -171,8 +173,10 @@ AâKTY,Aa+'KooY,N
 âXµÔ,Xoot,N
 ãXT,Xaj,N
 ãËXT,Xaj,N
-ã¤ÃT,khraj,N
-ã¡ÅT,klaj,N
+## no code X Y C R is included, add dummay tone 8
+#ã¤ÃT,khraj8,N
+#ã¡ÅT,klaj8,N
+ãCRT,CRaj,N
 AKTÍ,Aa+'KOO,N
 CRTÍ,CROO,N
 XTÍ,XOO,N
@@ -195,8 +199,8 @@ AKÃ,Aa+'KOOn,T
 XÃ,XOOn,T
 XÄ,Xri,T
 XÄY,XriY,T
-Äå,rUU,T
-Æå,lUU,T
+Äå,rUU0,T
+Æå,lUU0,T
 AKTZ,Aa+'KoZ,N
 CRTZ,CRoZ,N
 XTZ,XoZ,N
