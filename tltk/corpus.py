@@ -94,7 +94,7 @@ def load_dict_from_pickle(filename):
     with open(filename, 'rb') as file:
         return pickle.load(file)
     
-def TNC_load_2():
+def TNC_load_2(filename):
     global TriCount_2
     global BiCount_2
     global BiCount2_2
@@ -112,7 +112,8 @@ def TNC_load_2():
     ATA_PATH = os.path.dirname(path)
     InFile = open(ATA_PATH + '/misspelled_resources/trigram_data.3g','r',encoding='utf8')
     """
-    InFile = open('misspelled_resources/trigram_data.3g','r',encoding='utf8')
+    #InFile = open('misspelled_resources/trigram_data.3g','r',encoding='utf8')
+    InFile = open(filename,'r',encoding='utf8')
     forbidden = [('เกย','ตื่น')]
         
     print("Loading custom ngram data.")
@@ -139,7 +140,7 @@ def TNC_load_2():
             TotalWord_2 += freq
     return(1)
 
-def TNC_load():
+def TNC_load(filename):
     global TriCount
     global BiCount
     global BiCount2
@@ -154,12 +155,15 @@ def TNC_load():
 
     #split_dict = load_dict_from_pickle('merge_tuples.pkl')
 
+    """
     path = os.path.abspath(__file__)
     ATA_PATH = os.path.dirname(path)
     try: 
         InFile = open(ATA_PATH + '/TNC.3g','r',encoding='utf8')
     except IOError:
-        InFile = open('TNC.3g','r',encoding='utf8')        
+        InFile = open('TNC.3g','r',encoding='utf8')    
+    """
+    InFile = open(filename,'r',encoding='utf8')      
 #    Filename = ATA_PATH + '/TNC.3g'
 #    InFile = open(Filename,'r',encoding='utf8')
     #print("don't load tricount this time")
@@ -250,10 +254,12 @@ def bigram_orig(w1,w2):
     global BiCount
     global TotalWord
     
+    """
     try:
       BiCount
     except NameError:
       TNC_load()
+    """
 
     #if nlp.check_thaidict(w1+w2): # jinny
     #    return unigram(w1+w2)
@@ -266,10 +272,12 @@ def bigram_custom(w1,w2):
     global BiCount_2
     global TotalWord_2
     
+    """
     try:
       BiCount_2
     except NameError:
       TNC_load_2()
+    """
 
     if (w1,w2) in BiCount_2:
         return(float(BiCount_2[(w1,w2)] * 1000000 / TotalWord_2))

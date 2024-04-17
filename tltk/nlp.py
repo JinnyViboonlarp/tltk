@@ -59,8 +59,9 @@ def read_thaidict(Filename):
         TDICT[w] = 1
     return(1)
 
-def read_thdict(Filename):
+def read_thdict(Filename, area_name = None):
     global TDICT
+    
     fileObject = open(Filename,'rb')  
     TDICT = pickle.load(fileObject)
     
@@ -70,10 +71,11 @@ def read_thdict(Filename):
     
     #with open(ATA_PATH + '/misspelled_resources/area_names.pickle', 'rb') as file:
     #    area_names = pickle.load(file)
-    with open('misspelled_resources/area_names.pickle', 'rb') as file:
-        area_names = pickle.load(file)
-    for word in area_names:
-        TDICT[word] = 1
+    if(area_name):
+        with open(area_name, 'rb') as file:
+            area_names = pickle.load(file)
+        for word in area_names:
+            TDICT[word] = 1
 
     # jinny: let's add some more vocab, or remove some
     added_words = ['เซินเจิ้น','วอลเล็ต','วอลเลต','โซเชียล']
@@ -3434,7 +3436,7 @@ def initial():
     read_sylpattern(ATA_PATH + '/sylrule.lts')
     read_syldict(ATA_PATH +  '/thaisyl.dict')
     read_stat(ATA_PATH + '/sylseg.3g')
-    read_thdict(ATA_PATH +  '/thdict')
+    #read_thdict(ATA_PATH +  '/thdict')
     read_sylvar(ATA_PATH + '/sylform_var.pklz')
 
     read_PhSTrigram(ATA_PATH +  '/PhSTrigram.sts')
